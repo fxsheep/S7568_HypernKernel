@@ -126,3 +126,6 @@ obj-y				+= clk/
 obj-$(CONFIG_NEW_SENSORS)	+= sensors/
 
 obj-$(CONFIG_HWSPINLOCK)	+= hwspinlock/
+
+#Samsung drivers
+obj-$(CONFIG_SAMSUNG_MODULES)   += samsung/
