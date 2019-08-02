@@ -146,9 +146,9 @@ volatile bool dhd_mmc_suspend = FALSE;
 DECLARE_WAIT_QUEUE_HEAD(dhd_dpc_wait);
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP) */
 
-#if defined(OOB_INTR_ONLY)
+#if defined(OOB_INTR_ONLY) || defined(BCMSPI_ANDROID)
 extern void dhd_enable_oob_intr(struct dhd_bus *bus, bool enable);
-#endif /* defined(OOB_INTR_ONLY) */
+#endif /* defined(OOB_INTR_ONLY) || defined(BCMSPI_ANDROID) */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && (1)
 static void dhd_hang_process(struct work_struct *work);
 #endif 
@@ -3396,10 +3396,8 @@ dhd_bus_start(dhd_pub_t *dhdp)
 		return -ENODEV;
 	}
 
-#ifndef BCMSPI_ANDROID
 	/* Enable oob at firmware */
 	dhd_enable_oob_intr(dhd->pub.bus, TRUE);
-#endif /* !BCMSPI_ANDROID */
 #endif /* defined(OOB_INTR_ONLY) || defined(BCMSPI_ANDROID) */
 
 	/* If bus is not ready, can't come up */
@@ -3879,9 +3877,6 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 		setbit(eventmask, WLC_E_ACTION_FRAME_RX);
 		setbit(eventmask, WLC_E_ACTION_FRAME_COMPLETE);
 		setbit(eventmask, WLC_E_ACTION_FRAME_OFF_CHAN_COMPLETE);
-#ifdef NO_DYNAMIC_P2P_PROBREQ_MSG_SET
-		setbit(eventmask, WLC_E_P2P_PROBREQ_MSG);
-#endif /* NO_DYNAMIC_P2P_PROBREQ_MSG_SET */
 		setbit(eventmask, WLC_E_P2P_DISC_LISTEN_COMPLETE);
 	}
 #if defined(CUSTOMER_HW4) && defined(WES_SUPPORT)

@@ -58,6 +58,7 @@
 
 #ifdef CONFIG_INPUT_YAS_SENSORS
 #include <linux/yas.h>
+#include <linux/yas_accel.h>
 #endif
 
 #if defined(CONFIG_SENSORS_GP2A)
@@ -394,6 +395,23 @@ static struct gp2a_prox_platform_data gp2a_prox_platform_data = {
 };
 #endif
 
+#if CONFIG_YAS_ACC_DRIVER_BMA222E
+static struct accel_platform_data bma222e_platform_data = {
+	.used_chip = BMA222E_ENABLED,
+	.position=5,
+	//.irq = gpio_to_irq(PROXI_INT_GPIO_PIN),
+	.vendor_name = "BOSCH",
+	.chip_name="BMA222E",
+};
+#endif
+#if CONFIG_YAS_ACC_DRIVER_KXTJ2
+static struct accel_platform_data kxtj2_platform_data = {
+	.used_chip = KXTJ2_ENABLED,
+	.position=5,
+	.vendor_name = "KIONIX",
+	.chip_name="KXTJ2",
+};
+#endif
 static struct i2c_board_info i2c0_boardinfo[] = {
 	
 #if defined  (CONFIG_SENSORS_K3DH)
@@ -413,11 +431,15 @@ static struct i2c_board_info i2c0_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("accelerometer", 0x19),
 	},
-	#elif CONFIG_YAS_ACC_DRIVER_BMA222E
-	{
-		I2C_BOARD_INFO("accelerometer", 0x18),
-	},
 	#endif
+	{
+		I2C_BOARD_INFO("accelerometer", 0x18), // BMA222E
+		.platform_data=&bma222e_platform_data,
+	},
+	{
+		I2C_BOARD_INFO("accelerometer", 0x0e), // KXTJ2
+		.platform_data = &kxtj2_platform_data,
+	},
 	{
 		I2C_BOARD_INFO("geomagnetic", 0x2e),
 	},

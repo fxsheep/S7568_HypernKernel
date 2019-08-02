@@ -19,9 +19,10 @@
  */
 
 #include <linux/yas.h>
-#ifdef CONFIG_YAS_ACC_MULTI_SUPPORT
+#include <linux/yas_accel.h> // DUAL
+#if 0 //def CONFIG_YAS_ACC_MULTI_SUPPORT
 #include <linux/yas_accel.h>
-#else
+//#else
 #define CHIP_NAME		"BOSCH"
 #define VENDOR_NAME		"BMA222E"
 #endif
@@ -98,6 +99,7 @@
 /* -------------------------------------------------------------------------- */
 /*  Structure definition                                                      */
 /* -------------------------------------------------------------------------- */
+#if 0 // DUAL
 /* Output data rate */
 struct yas_bma222e_odr {
 	unsigned long delay;          /* min delay (msec) in the range of ODR */
@@ -126,6 +128,7 @@ struct yas_bma222e_data {
 	struct yas_vector offset;
 	struct yas_bma222e_acceleration last;
 };
+#endif
 
 /* Sleep duration */
 struct yas_bma222e_sd {
@@ -139,10 +142,10 @@ struct yas_bma222e_sd {
 /* Control block */
 static struct yas_acc_driver  cb;
 static struct yas_acc_driver *pcb;
-static struct yas_bma222e_data acc_data;
+static struct yas_sensor_data acc_data; // DUAL
 
 /* Output data rate */
-static const struct yas_bma222e_odr yas_bma222e_odr_tbl[] = {
+static const struct yas_sensor_odr yas_bma222e_odr_tbl[] = {
 	{1,   YAS_BMA222E_BANDWIDTH_1000HZ},
 	{2,   YAS_BMA222E_BANDWIDTH_500HZ},
 	{4,   YAS_BMA222E_BANDWIDTH_250HZ},
@@ -208,6 +211,7 @@ static int yas_bma222e_set_filter_enable(int);
 static int yas_bma222e_get_position(void);
 static int yas_bma222e_set_position(int);
 static int yas_bma222e_measure(int *, int *);
+static int bma222e_acc_calibration(int); 
 #if DEBUG
 static int yas_get_register(uint8_t, uint8_t *);
 #endif
@@ -430,9 +434,12 @@ static int yas_bma222e_init(void)
 	/* Check id */
 	id = yas_bma222e_read_reg_byte(YAS_BMA222E_CHIP_ID_REG);
 	if (id != YAS_BMA222E_CHIP_ID) {
+		printk("-ERR- ACC BMA222E : WHO_AM_I = 0x%02x\n", id);		
 		yas_bma222e_i2c_close();
 		return YAS_ERROR_CHIP_ID;
 	}
+
+	printk(" ACC BMA222E : WHO_AM_I = 0x%02x\n", id);
 
 	/* Reset chip */
 	yas_bma222e_write_reg_byte(YAS_BMA222E_SOFT_RESET_REG,
@@ -489,7 +496,7 @@ static int yas_bma222e_set_delay(int delay)
 
 	/* Determine optimum odr */
 	for (i = 1; i < (int)(sizeof(yas_bma222e_odr_tbl) /
-			      sizeof(struct yas_bma222e_odr)) &&
+			      sizeof(struct yas_sensor_odr)) &&
 		     delay >= (int)yas_bma222e_odr_tbl[i].delay; i++)
 		;
 
@@ -641,7 +648,7 @@ static int yas_bma222e_set_position(int position)
 }
 
 static int yas_bma222e_data_filter(int data[], int raw[],
-				  struct yas_bma222e_acceleration *accel)
+				  struct yas_sensor_acceleration *accel)
 {
 	int filter_enable = acc_data.filter_enable;
 	int threshold = acc_data.threshold;
@@ -673,7 +680,7 @@ static int yas_bma222e_data_filter(int data[], int raw[],
 
 static int yas_bma222e_measure(int *out_data, int *out_raw)
 {
-	struct yas_bma222e_acceleration accel;
+	struct yas_sensor_acceleration accel;
 	unsigned char buf[6];
 	int32_t raw[3], data[3];
 	int pos = acc_data.position;
@@ -721,7 +728,7 @@ static int yas_bma222e_measure(int *out_data, int *out_raw)
 }
 
 /* -------------------------------------------------------------------------- */
-static int yas_init(void)
+static int yas_cbk_bma222e_init(void)
 {
 	int err;
 
@@ -736,7 +743,7 @@ static int yas_init(void)
 	return err;
 }
 
-static int yas_term(void)
+static int yas_cbk_bma222e_term(void)
 {
 	int err;
 
@@ -751,7 +758,7 @@ static int yas_term(void)
 	return err;
 }
 
-static int yas_get_delay(void)
+static int yas_cbk_bma222e_get_delay(void)
 {
 	int ret;
 
@@ -766,7 +773,7 @@ static int yas_get_delay(void)
 	return ret;
 }
 
-static int yas_set_delay(int delay)
+static int yas_cbk_bma222e_set_delay(int delay)
 {
 	int err;
 
@@ -786,7 +793,7 @@ static int yas_set_delay(int delay)
 	return err;
 }
 
-static int yas_get_offset(struct yas_vector *offset)
+static int yas_cbk_bma222e_get_offset(struct yas_vector *offset)
 {
 	int err;
 
@@ -804,7 +811,7 @@ static int yas_get_offset(struct yas_vector *offset)
 	return err;
 }
 
-static int yas_set_offset(struct yas_vector *offset)
+static int yas_cbk_bma222e_set_offset(struct yas_vector *offset)
 {
 	int err;
 
@@ -822,7 +829,7 @@ static int yas_set_offset(struct yas_vector *offset)
 	return err;
 }
 
-static int yas_get_enable(void)
+static int yas_cbk_bma222e_get_enable(void)
 {
 	int err;
 
@@ -837,7 +844,7 @@ static int yas_get_enable(void)
 	return err;
 }
 
-static int yas_set_enable(int enable)
+static int yas_cbk_bma222e_set_enable(int enable)
 {
 	int err;
 
@@ -855,7 +862,7 @@ static int yas_set_enable(int enable)
 	return err;
 }
 
-static int yas_get_filter(struct yas_acc_filter *filter)
+static int yas_cbk_bma222e_get_filter(struct yas_acc_filter *filter)
 {
 	int err;
 
@@ -873,7 +880,7 @@ static int yas_get_filter(struct yas_acc_filter *filter)
 	return err;
 }
 
-static int yas_set_filter(struct yas_acc_filter *filter)
+static int yas_cbk_bma222e_set_filter(struct yas_acc_filter *filter)
 {
 	int err;
 
@@ -892,7 +899,7 @@ static int yas_set_filter(struct yas_acc_filter *filter)
 	return err;
 }
 
-static int yas_get_filter_enable(void)
+static int yas_cbk_bma222e_get_filter_enable(void)
 {
 	int err;
 
@@ -907,7 +914,7 @@ static int yas_get_filter_enable(void)
 	return err;
 }
 
-static int yas_set_filter_enable(int enable)
+static int yas_cbk_bma222e_set_filter_enable(int enable)
 {
 	int err;
 
@@ -925,7 +932,7 @@ static int yas_set_filter_enable(int enable)
 	return err;
 }
 
-static int yas_get_position(void)
+static int yas_cbk_bma222e_get_position(void)
 {
 	int err;
 
@@ -940,7 +947,7 @@ static int yas_get_position(void)
 	return err;
 }
 
-static int yas_set_position(int position)
+static int yas_cbk_bma222e_set_position(int position)
 {
 	int err;
 
@@ -958,7 +965,7 @@ static int yas_set_position(int position)
 	return err;
 }
 
-static int yas_measure(struct yas_acc_data *data)
+static int yas_cbk_bma222e_measure(struct yas_acc_data *data)
 {
 	int err;
 
@@ -975,8 +982,86 @@ static int yas_measure(struct yas_acc_data *data)
 
 	return err;
 }
+
+static int bma222e_acc_calibration(int onoff)
+{
+	int err=0;
+	struct acc_cal_data cal_data;
+	unsigned char buf[6];
+	int raw[3];
+	struct yas_vector offset;	
+	int pos = acc_data.position;
+	int i, j;	
+	int layout[3] = {0, 0, 1};	
+
+	printk(KERN_WARNING "ACC bma222e_acc_calibration onoff=(%d) \n",onoff);
+
+	if (onoff != 0)
+		onoff = 1;
+	
+	/* Check intialize */
+	if (pcb == NULL)
+		return YAS_ERROR_NOT_INITIALIZED;
+
+	if (onoff == NULL)
+		return YAS_ERROR_ARG;
+
+	yas_bma222e_lock();
+
+	layout[2] = YAS_BMA222E_RESOLUTION*yas_bma222e_position_map[CONFIG_INPUT_YAS_ACCELEROMETER_POSITION][2][2];		
+	if(onoff)/*calibrate*/
+	{
+		/* Read acceleration data */
+		if (yas_bma222e_read_reg(YAS_BMA222E_ACC_REG, buf, 6) != 0) {
+			cal_data.x = 0;
+			cal_data.y = 0;
+			cal_data.z = 0;		
+		} else {
+			for (i = 0; i < 3; i++)
+				raw[i] = *(int8_t *)&buf[i*2+1];
+
+			cal_data.x = raw[0] - layout[0];
+			cal_data.y = raw[1] - layout[1];
+			cal_data.z = raw[2] - layout[2];		
+		}
+		#if 0
+		/* for X, Y, Z axis */
+		for (i = 0; i < 3; i++) {
+			/* coordinate transformation */
+			data[i] = 0;
+			for (j = 0; j < 3; j++)
+				data[i] += raw[j] * yas_bma222e_position_map[pos][i][j];
+			//data[i] *= (YAS_LIS3DH_GRAVITY_EARTH / YAS_LIS3DH_RESOLUTION);
+		}
+		#endif
+
+		//iscalibrated=1;
+		printk(KERN_WARNING "BMA222E ACC CAL SAVED !!! (x,y,z)=(%d,%d,%d) \n",cal_data.x,cal_data.y,cal_data.z);
+		
+	}
+	else
+	{
+		cal_data.x = 0;
+		cal_data.y = 0;
+		cal_data.z = 0;
+		//iscalibrated=0;
+		printk(KERN_WARNING "BMA222E ACC CAL ERASED !!! \n");
+		//err=1; //means erased
+	}
+
+	offset.v[0] = cal_data.x;
+	offset.v[1] = cal_data.y;
+	offset.v[2] = cal_data.z;
+	err=yas_bma222e_set_offset(&offset);	// set offset		
+
+	yas_bma222e_unlock();
+
+	return err;
+}
+
+
 #if DEBUG
-static int yas_get_register(uint8_t adr, uint8_t *val)
+static int yas_cbk_bma222e_get_register(uint8_t adr, uint8_t *val)
 {
 	if (pcb == NULL)
 		return YAS_ERROR_NOT_INITIALIZED;
@@ -993,7 +1078,9 @@ static int yas_get_register(uint8_t adr, uint8_t *val)
 /* -------------------------------------------------------------------------- */
 /*  Global function                                                           */
 /* -------------------------------------------------------------------------- */
-int yas_acc_driver_init(struct yas_acc_driver *f)
+// DUAL 
+//int yas_acc_driver_init(struct yas_acc_driver *f)
+int yas_acc_driver_BMA222E_init(struct yas_acc_driver *f)
 {
 	struct yas_acc_driver_callback *cbk;
 
@@ -1017,23 +1104,24 @@ int yas_acc_driver_init(struct yas_acc_driver *f)
 	cb.callback = *cbk;
 
 	/* Set driver interface */
-	f->init = yas_init;
-	f->term = yas_term;
-	f->get_delay = yas_get_delay;
-	f->set_delay = yas_set_delay;
-	f->get_offset = yas_get_offset;
-	f->set_offset = yas_set_offset;
-	f->get_enable = yas_get_enable;
-	f->set_enable = yas_set_enable;
-	f->get_filter = yas_get_filter;
-	f->set_filter = yas_set_filter;
-	f->get_filter_enable = yas_get_filter_enable;
-	f->set_filter_enable = yas_set_filter_enable;
-	f->get_position = yas_get_position;
-	f->set_position = yas_set_position;
-	f->measure = yas_measure;
+	f->init = yas_cbk_bma222e_init;
+	f->term = yas_cbk_bma222e_term;
+	f->get_delay = yas_cbk_bma222e_get_delay;
+	f->set_delay = yas_cbk_bma222e_set_delay;
+	f->get_offset = yas_cbk_bma222e_get_offset;
+	f->set_offset = yas_cbk_bma222e_set_offset;
+	f->get_enable = yas_cbk_bma222e_get_enable;
+	f->set_enable = yas_cbk_bma222e_set_enable;
+	f->get_filter = yas_cbk_bma222e_get_filter;
+	f->set_filter = yas_cbk_bma222e_set_filter;
+	f->get_filter_enable = yas_cbk_bma222e_get_filter_enable;
+	f->set_filter_enable = yas_cbk_bma222e_set_filter_enable;
+	f->get_position = yas_cbk_bma222e_get_position;
+	f->set_position = yas_cbk_bma222e_set_position;
+	f->measure = yas_cbk_bma222e_measure;
+	f->acc_calibration = bma222e_acc_calibration;	
 #if DEBUG
-	f->get_register = yas_get_register;
+	f->get_register = yas_cbk_bma222e_get_register;
 #endif
 	pcb = &cb;
 

@@ -2021,9 +2021,6 @@ printk("stc311x_probe\n");
     printk("Out of memory to create client structure for stc311x\n");
     return -ENOMEM;  /*Out of memory*/
   }
-
-
-  printk("\n\nstc311x probe started\n\n");
   
   /* The common I2C client data is placed right specific data. */
   chip->client = client;
@@ -2068,11 +2065,10 @@ printk("stc311x_probe\n");
 	{
 		printk("stc311x probe *** reset stc3115 fail *** [%d]\n", ret);	
 	}
-	mdelay(1000);
+	mdelay(600);
 
 	if (chip->pdata)
 	{
-  printk("stc311x probe debug 1\n");
 		GasGaugeData.Vmode = chip->pdata->Vmode;       /* 1=Voltage mode, 0=mixed mode */
 	  	GasGaugeData.Alm_SOC = chip->pdata->Alm_SOC;     /* SOC alm level %*/
 	  	GasGaugeData.Alm_Vbat = chip->pdata->Alm_Vbat;    /* Vbat alm level mV*/
@@ -2086,12 +2082,10 @@ printk("stc311x_probe\n");
 		for(Loop=0;Loop<NTEMP;Loop++)
 			GasGaugeData.CapDerating[Loop] = chip->pdata->CapDerating[Loop];   
 		/* OCV curve adjustment */
-  printk("stc311x probe debug 2\n");		
 		for(Loop=0;Loop<16;Loop++)
 	  		GasGaugeData.OCVOffset[Loop] = chip->pdata->OCVOffset[Loop];    
                 for(Loop=0;Loop<16;Loop++)
 	  		GasGaugeData.OCVOffset2[Loop] = chip->pdata->OCVOffset2[Loop];
-  printk("stc311x probe debug 3\n");
 
 #if 0
 	  	GasGaugeData.ExternalTemperature = chip->pdata->ExternalTemperature(); /*External temperature fonction, return C*/
@@ -2101,7 +2095,6 @@ printk("stc311x_probe\n");
 	
 	GasGauge_Start(&GasGaugeData);
 
- printk("stc311x probe debug 4\n");	
 	res=GasGauge_Task(&GasGaugeData);  /* process gas gauge algorithm, returns results */
     if (res>0) 
     {
@@ -2117,7 +2110,6 @@ printk("stc311x_probe\n");
         chip->batt_voltage = GasGaugeData.Voltage + 20;
         chip->batt_current = 0;
 	}
- printk("stc311x probe debug 5\n");	
 #if defined(CONFIG_SPA)
 	spa_sta311x_chip = chip;
 

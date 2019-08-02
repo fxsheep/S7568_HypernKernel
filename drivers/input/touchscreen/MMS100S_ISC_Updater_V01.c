@@ -357,7 +357,7 @@ eMFSRet_t check_firmware_version(const unsigned char *_pBinary_Data)
 	moduleVersion = read_buffer;
 	setVersion = _pBinary_Data[SET_VERSION_ADDR];
 #ifdef CONFIG_MACH_KYLETD
-	setVersion = 0x20;		/* kylei white panel R03 */
+	setVersion = 0x21;		/* kylei white panel R03 */
 #endif	
 	TSP_PanelVersion = moduleVersion;
 	TSP_PhoneVersion = setVersion;

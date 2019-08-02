@@ -380,6 +380,10 @@ static int tx_packets[NUMPRIO];
 const uint dhd_deferred_tx = 1;
 
 extern uint dhd_watchdog_ms;
+#ifdef BCMSPI_ANDROID
+extern uint *dhd_spi_lockcount;
+#endif /* BCMSPI_ANDROID */
+
 extern void dhd_os_wd_timer(void *bus, uint wdtick);
 
 /* Tx/Rx bounds */
@@ -1521,12 +1525,14 @@ dhdsdio_func_blocksize(dhd_pub_t *dhd, int function_num, int block_size)
 }
 #endif /* CUSTOMER_HW4 && DYNAMIC_F2_BLKSIZE_OF_PROPTXSTATUS */
 
-#if defined(OOB_INTR_ONLY)
+#if defined(OOB_INTR_ONLY) || defined(BCMSPI_ANDROID)
 void
 dhd_enable_oob_intr(struct dhd_bus *bus, bool enable)
 {
-#if defined(HW_OOB)
+#if defined(HW_OOB) 
 	bcmsdh_enable_hw_oob_intr(bus->sdh, enable);
+#elif defined(BCMSPI_ANDROID)
+	bcmsdh_intr_enable(bus->sdh);
 #else
 	sdpcmd_regs_t *regs = bus->regs;
 	uint retries = 0;
@@ -1550,7 +1556,7 @@ dhd_enable_oob_intr(struct dhd_bus *bus, bool enable)
 	dhdsdio_clkctl(bus, CLK_SDONLY, FALSE);
 #endif /* !defined(HW_OOB) */
 }
-#endif /* defined(OOB_INTR_ONLY) */
+#endif /* defined(OOB_INTR_ONLY) || defined(BCMSPI_ANDROID */
 
 /* Writes a HW/SW header into the packet and sends it. */
 /* Assumes: (a) header space already there, (b) caller holds lock */
@@ -2209,13 +2215,13 @@ dhd_bus_txctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 	} else
 #endif /* BCMSDIOH_TXGLOM */
 	{
-	/* Software tag: channel, sequence number, data offset */
-	swheader = ((SDPCM_CONTROL_CHANNEL << SDPCM_CHANNEL_SHIFT) & SDPCM_CHANNEL_MASK)
-	        | bus->tx_seq | ((doff << SDPCM_DOFFSET_SHIFT) & SDPCM_DOFFSET_MASK);
-	htol32_ua_store(swheader, frame + SDPCM_FRAMETAG_LEN);
-	htol32_ua_store(0, frame + SDPCM_FRAMETAG_LEN + sizeof(swheader));
+		/* Software tag: channel, sequence number, data offset */
+		swheader = ((SDPCM_CONTROL_CHANNEL << SDPCM_CHANNEL_SHIFT) & SDPCM_CHANNEL_MASK)
+			| bus->tx_seq | ((doff << SDPCM_DOFFSET_SHIFT) & SDPCM_DOFFSET_MASK);
+		htol32_ua_store(swheader, frame + SDPCM_FRAMETAG_LEN);
+		htol32_ua_store(0, frame + SDPCM_FRAMETAG_LEN + sizeof(swheader));
 	}
-	if (1) {
+	if (!TXCTLOK(bus)) {
 		DHD_INFO(("%s: No bus credit bus->tx_max %d, bus->tx_seq %d\n",
 			__FUNCTION__, bus->tx_max, bus->tx_seq));
 		bus->ctrl_frame_stat = TRUE;
@@ -4292,7 +4298,9 @@ dhd_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 		bus->intdis = FALSE;
 		if (bus->intr) {
 			DHD_INTR(("%s: enable SDIO device interrupts\n", __FUNCTION__));
+#ifndef BCMSPI_ANDROID
 			bcmsdh_intr_enable(bus->sdh);
+#endif /* !BCMSPI_ANDROID */
 		} else {
 			DHD_INTR(("%s: disable SDIO interrupts\n", __FUNCTION__));
 			bcmsdh_intr_disable(bus->sdh);
@@ -5961,10 +5969,14 @@ clkwait:
 		DHD_INTR(("%s: enable SDIO interrupts, rxdone %d framecnt %d\n",
 		          __FUNCTION__, rxdone, framecnt));
 		bus->intdis = FALSE;
-#if defined(OOB_INTR_ONLY) || defined(BCMSPI_ANDROID)
-	bcmsdh_oob_intr_set(1);
-#endif /* defined(OOB_INTR_ONLY) || defined(BCMSPI_ANDROID) */
+#if defined(OOB_INTR_ONLY)
+		bcmsdh_oob_intr_set(1);
+#endif /* defined(OOB_INTR_ONLY) */
 		bcmsdh_intr_enable(sdh);
+#ifdef BCMSPI_ANDROID
+		if (*dhd_spi_lockcount == 0)
+			bcmsdh_oob_intr_set(1);
+#endif /* BCMSPI_ANDROID */
 	}
 
 #if defined(OOB_INTR_ONLY) && !defined(HW_OOB)
@@ -5974,7 +5986,7 @@ clkwait:
 	 * There is a chance to miss OOB interrupt while irq is disabled on the host.
 	 * No need to do this with HW-OOB(level trigger)
 	 */
-	R_SDREG(newstatus, &regs->intstatus, retries);
+	R_SDREG(newstatus, &regs->intstatus, retries);	
 	if (bcmsdh_regfail(bus->sdh))
 		newstatus = 0;
 	if (newstatus & bus->hostintmask) {
@@ -5982,7 +5994,7 @@ clkwait:
 		resched = TRUE;
 	}
 #endif /* defined(OOB_INTR_ONLY) && !defined(HW_OOB) */
-
+	
 	if (TXCTLOK(bus) && bus->ctrl_frame_stat && (bus->clkstate == CLK_AVAIL))  {
 		int ret, i;
 
@@ -6040,7 +6052,7 @@ clkwait:
 	}
 	/* Resched the DPC if ctrl cmd is pending on bus credit */
 	if (bus->ctrl_frame_stat) {
-		DHD_TRACE_HW4(("%s : tx_max : %d, tx_seq : %d, clkstate : %d \n",
+		DHD_TRACE(("%s : tx_max : %d, tx_seq : %d, clkstate : %d \n",
 			__FUNCTION__, bus->tx_max, bus->tx_seq, bus->clkstate));  
 		resched = TRUE;
 	}
@@ -6134,6 +6146,9 @@ dhdsdio_isr(void *arg)
 		DHD_ERROR(("dhdsdio_isr() w/o interrupt configured!\n"));
 	}
 
+#ifdef BCMSPI_ANDROID
+	bcmsdh_oob_intr_set(0);
+#endif /* BCMSPI_ANDROID */
 	bcmsdh_intr_disable(sdh);
 	bus->intdis = TRUE;
 
@@ -7849,9 +7864,7 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 					if (bcmerror == BCME_OK) {
 #if defined(OOB_INTR_ONLY) || defined(BCMSPI_ANDROID)
 						bcmsdh_set_irq(TRUE);
-#ifndef BCMSPI_ANDROID
 						dhd_enable_oob_intr(bus, TRUE);
-#endif /* !BCMSPI_ANDROID */
 #endif /* defined(OOB_INTR_ONLY) || defined(BCMSPI_ANDROID) */
 
 						bus->dhd->dongle_reset = FALSE;

@@ -143,6 +143,7 @@ static int FW_VERSION;
 #define GFF_V19H2_CRC 64
 #define GFF_V19H3_CRC 155
 #define GFF_V20_CRC 206
+#define GFF_V21_CRC 158
 unsigned long saved_rate;
 //static bool lock_status;
 static int tsp_enabled;
@@ -3264,7 +3265,7 @@ static int mms_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 		crc_b2 = read_data_buf[0];
 		printk(KERN_ERR "[TSP] PROBE CRC 0xb2=%d)\n", crc_b2);
 
-		if(crc_b2 != GFF_V20_CRC) {
+		if(crc_b2 != GFF_V21_CRC) {
 //		if ((IC_type == 0x0F && crc_b2 != G1F_V20_CRC) ||(IC_type == 0x0D &&  crc_b2 != G1M_V34_CRC))  {
 			printk(KERN_ERR "[TSP]Enter CRC_check_errror=%d\n");
 			for (i = 0; i < DOWNLOAD_RETRY_CNT; i++) {

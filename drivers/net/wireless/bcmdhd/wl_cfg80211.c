@@ -8815,9 +8815,6 @@ static s32 wl_config_ifmode(struct wl_priv *wl, struct net_device *ndev, s32 ift
 
 s32 wl_add_remove_eventmsg(struct net_device *ndev, u16 event, bool add)
 {
-#ifdef NO_DYNAMIC_P2P_PROBREQ_MSG_SET
-	return 0;
-#else
 	s8 iovbuf[WL_EVENTING_MASK_LEN + 12];
 
 	s8 eventmask[WL_EVENTING_MASK_LEN];
@@ -8847,7 +8844,6 @@ s32 wl_add_remove_eventmsg(struct net_device *ndev, u16 event, bool add)
 
 eventmsg_out:
 	return err;
-#endif /* NO_DYNAMIC_P2P_PROBREQ_MSG_SET */
 }
 
 static int wl_construct_reginfo(struct wl_priv *wl, s32 bw_cap)

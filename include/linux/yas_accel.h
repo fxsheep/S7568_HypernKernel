@@ -33,6 +33,10 @@ int yas_acc_driver_BMA25X_init(struct yas_acc_driver *f);
 int yas_acc_driver_BMA222E_init(struct yas_acc_driver *f);
 #endif
 
+#ifdef CONFIG_YAS_ACC_DRIVER_KXTJ2
+int yas_acc_driver_kxtj2_init(struct yas_acc_driver *f);
+#endif
+
 enum {
 	#ifdef CONFIG_YAS_ACC_DRIVER_LIS3DH
 	K3DH_ENABLED,
@@ -43,14 +47,20 @@ enum {
 	#ifdef CONFIG_YAS_ACC_DRIVER_BMA222E
 	BMA222E_ENABLED,
 	#endif
+	#ifdef CONFIG_YAS_ACC_DRIVER_KXTJ2
+	KXTJ2_ENABLED,
+	#endif
 	MAX_CHIP_NUM,
 };
+
+#define MAX_LEN_OF_NAME 10
 
 struct accel_platform_data {
 	int used_chip;
 	int position;
+	char vendor_name[MAX_LEN_OF_NAME];
+	char chip_name[MAX_LEN_OF_NAME];
 };
-#define MAX_LEN_OF_NAME 10
 
 
 #endif /*__YAS_ACCEL_H__ */

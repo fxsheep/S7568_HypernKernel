@@ -46,6 +46,7 @@
 #define YAS_ACC_DRIVER_LIS3DH               (15)
 #define YAS_ACC_DRIVER_MMA8452Q             (16)
 #define YAS_ACC_DRIVER_MMA8453Q             (17)
+#define YAS_ACC_DRIVER_KXTJ2             (18)
 
 #define YAS_GYRO_DRIVER_NONE                (-1)
 #define YAS_GYRO_DRIVER_ITG3200             (0)
@@ -103,7 +104,7 @@
 #elif YAS_ACC_DRIVER == YAS_ACC_DRIVER_MMA8453Q
 #define YAS_DEFAULT_ACCCALIB_DISTORTION     (1000)
 #else
-#define YAS_DEFAULT_ACCCALIB_DISTORTION     (0)
+#define YAS_DEFAULT_ACCCALIB_DISTORTION     (25000)
 #endif
 
 /*----------------------------------------------------------------------------*/

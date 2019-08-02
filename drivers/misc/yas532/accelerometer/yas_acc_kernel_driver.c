@@ -34,7 +34,8 @@
 
 #define __LINUX_KERNEL_DRIVER__
 
-#ifndef CONFIG_YAS_ACC_MULTI_SUPPORT
+//DUAL
+#if 0 //ndef CONFIG_YAS_ACC_MULTI_SUPPORT
 #ifdef CONFIG_YAS_ACC_DRIVER_LIS3DH
 #include "yas_acc_driver-lis3dh.c"
 #elif CONFIG_YAS_ACC_DRIVER_BMA250
@@ -42,9 +43,13 @@
 #elif CONFIG_YAS_ACC_DRIVER_BMA222E
 #include "yas_acc_driver-bma222e.c"
 #endif
-#else
+//#else
 #include <linux/yas_accel.h>
 #endif
+#include "yas_acc_driver-bma222e.c"
+#include "yas_acc_driver-kxtj2.c"
+#include <linux/yas_accel.h>
+
 #include <linux/sensors_core.h>
 
 #define YAS_ACC_KERNEL_VERSION                                       "4.4.702a"
@@ -59,6 +64,9 @@ char vendor_name[MAX_CHIP_NUM][MAX_LEN_OF_NAME] = {
 #ifdef (CONFIG_YAS_ACC_DRIVER_BMA250) || (CONFIG_YAS_ACC_DRIVER_BMA222E)
 	{"BOSCH"},
 #endif
+#ifdef CONFIG_YAS_ACC_DRIVER_KXTJ2
+	{"KIONIX"},
+#endif
 };
 
 char chip_name[MAX_CHIP_NUM][MAX_LEN_OF_NAME] = {
@@ -70,6 +78,9 @@ char chip_name[MAX_CHIP_NUM][MAX_LEN_OF_NAME] = {
 #endif
 #ifdef CONFIG_YAS_ACC_DRIVER_BMA222E
 	{"BMA222E"},
+#endif
+#ifdef CONFIG_YAS_ACC_DRIVER_KXTJ2
+	{"KXTJ2"},
 #endif
 };
 #endif
@@ -175,21 +186,22 @@ struct yas_acc_private_data {
 	struct device *accel_sensor_device;
 	struct yas_vector cal_data;
 	int enabled;
-#ifdef CONFIG_YAS_ACC_MULTI_SUPPORT
+// DUAL
+//#ifdef CONFIG_YAS_ACC_MULTI_SUPPORT
 	int used_chip;
 	int position;
-#endif
+	char vendor_name[MAX_LEN_OF_NAME];
+	char chip_name[MAX_LEN_OF_NAME];
+//#endif
 };
 
 /* BMA222E calibration */
 #define CALIBRATION_FILE_PATH	"/efs/calibration_data"
-struct yas_cal_data {
-	s16 x;
-	s16 y;
-	s16 z;
-};
+
 static int iscalibrated=0;
 static u8 calRestored=0; // Cal file should be read at least one time after boot up
+static int foundAccel=0;
+
 
 static struct yas_acc_private_data *yas_acc_private_data;
 static struct yas_acc_private_data *yas_acc_get_data(void)
@@ -471,7 +483,7 @@ static int accel_open_calibration(void)
 static int bma222_open_calibration(struct yas_acc_private_data *data)
 {
 	struct file *cal_filp = NULL;
-	struct yas_cal_data cal_data;
+	struct acc_cal_data cal_data;
 	struct yas_vector offset;
 	char buf[3] = {0, };
 	int err = 0;
@@ -716,6 +728,8 @@ static int yas_acc_core_driver_init(struct yas_acc_private_data *data)
 	cbk->device_read = yas_acc_i2c_read;
 	cbk->msleep = yas_acc_msleep;
 
+// DUAL
+#if 0
 #ifdef CONFIG_YAS_ACC_MULTI_SUPPORT
 	#ifdef CONFIG_YAS_ACC_DRIVER_LIS3DH
 		if (data->used_chip == K3DH_ENABLED)
@@ -729,8 +743,23 @@ static int yas_acc_core_driver_init(struct yas_acc_private_data *data)
 		if (data->used_chip == BMA222E_ENABLED)
 			err = yas_acc_driver_BMA222E_init(driver);
 	#endif
+	#ifdef CONFIG_YAS_ACC_DRIVER_KXTJ2
+		if (data->used_chip == KXTJ2_ENABLED)
+			err = yas_acc_driver_kxtj2_init(driver);
+	#endif
 #else
 	err = yas_acc_driver_init(driver);
+#endif
+#else // else of DUAL
+	// Dual init
+	if(data->used_chip == BMA222E_ENABLED)
+		err = yas_acc_driver_BMA222E_init(driver);
+	else if (data->used_chip == KXTJ2_ENABLED)
+		err = yas_acc_driver_kxtj2_init(driver);
+	else {
+		printk("##%s : No defined function \n", __func__);
+		return -1;
+	}
 #endif
 	if (err != YAS_NO_ERROR) {
 		kfree(driver);
@@ -742,6 +771,9 @@ static int yas_acc_core_driver_init(struct yas_acc_private_data *data)
 		kfree(driver);
 		return err;
 	}
+	else
+		foundAccel  = 1;
+
 #ifdef CONFIG_YAS_ACC_MULTI_SUPPORT
 	err = driver->set_position(data->position);
 	if (err != YAS_NO_ERROR) {
@@ -970,7 +1002,7 @@ static ssize_t yas_acc_enable_store(struct device *dev,
 	if (ret < 0)
 		return count;
 	
-	printk(KERN_INFO "%s: enable:%d\n", __func__, enable);
+	printk(KERN_INFO "%s: enable:%d  delay:%d\n", __func__, enable,acc_data.delay);
 
 	mutex_lock(&data->enable_mutex);
 
@@ -1192,6 +1224,8 @@ static ssize_t yas_acc_private_data_show(struct device *dev,
 #elif YAS_ACC_DRIVER == YAS_ACC_DRIVER_MMA8452Q || \
 	YAS_ACC_DRIVER == YAS_ACC_DRIVER_MMA8453Q
 #define ADR_MAX (0x32)
+#elif YAS_ACC_DRIVER == YAS_ACC_DRIVER_KXTJ2 || \
+#define ADR_MAX (0x6B)
 #else
 #define ADR_MAX (0x16)
 #endif
@@ -1424,8 +1458,9 @@ static ssize_t acc_data_read(struct device *dev,
 /* BMA222E calibration */
 static int bma222_fast_calibration(int is_cal_erase)
 {
+#if 0 // FOR BMA222E
 	struct file *cal_filp = NULL;
-	struct yas_cal_data cal_data;
+	struct acc_cal_data cal_data;
 	struct yas_vector offset;
 	struct yas_acc_private_data *data =yas_acc_get_data();
 	int err = 0;
@@ -1562,6 +1597,54 @@ static int bma222_fast_calibration(int is_cal_erase)
 	    return 0;
 	}
 	#endif
+//#else  /*KXTJ2 has same position with BMA222E and modified resoultion to 8bit for KyleTD*/
+
+	struct yas_acc_private_data *data = yas_acc_get_data();
+	int err = 0;	
+	#if 0
+	struct yas_acc_data accel;
+	struct yas_acc_private_data *data = yas_acc_get_data();
+	struct acc_cal_data cal_data;
+	struct yas_vector offset;	
+	mm_segment_t old_fs;
+	int layout[3] = {0, 0, 1};
+	
+	printk(KERN_WARNING "KXTJ2 %s ", __func__);
+
+	layout[2] = YAS_BMA222E_RESOLUTION*yas_kxtj2_position_map[CONFIG_INPUT_YAS_ACCELEROMETER_POSITION][2][2];		
+
+	if(is_cal_erase) 
+	{
+		cal_data.x = 0;
+		cal_data.y = 0;
+		cal_data.z = 0;
+		iscalibrated=0;
+		printk(KERN_WARNING "KXTJ2 ACC CAL ERASED !!! \n");
+	}
+	else 
+	{
+		 /* Read acceleration data */
+		accel.raw.v[0] = accel.raw.v[1] = accel.raw.v[2] = 0;
+		yas_acc_measure(data->driver, &accel);
+	
+		
+	    	cal_data.x = accel.raw.v[0] - layout[0];
+	    	cal_data.y = accel.raw.v[1] - layout[1];
+	    	cal_data.z = accel.raw.v[2] - layout[2];
+		iscalibrated=1;
+		printk(KERN_WARNING "KXTJ2 ACC CAL SAVED !!! (x,y,z)=(%d,%d,%d) \n",cal_data.x,cal_data.y,cal_data.z);
+
+	}
+		
+	offset.v[0] = cal_data.x;
+	offset.v[1] = cal_data.y;
+	offset.v[2] = cal_data.z;
+	data->driver->set_offset(&offset);	// set offset		
+	#endif
+
+ err=data->driver->acc_calibration(1);
+ 
+#endif
 }
 
 static ssize_t accel_calibration_show(struct device *dev,
@@ -1594,49 +1677,79 @@ static ssize_t accel_calibration_store(struct device *dev,
 				      const char *buf, size_t size)
 {
     int is_cal_erase = buf[0];
+	struct yas_acc_private_data *data = yas_acc_get_data();
+	struct yas_vector offset;
+	struct acc_cal_data cal_data;	
+	mm_segment_t old_fs;	
+	struct file *cal_filp = NULL;
+	int err=0;
 
-    printk("### bma222_calibration start cal_erase : %d\n", is_cal_erase);
+	printk("### accel_calibration_store start cal_erase : %d\n", is_cal_erase);
 	
+	/*Update offset*/
+#if 0 /*OLD*/
     if (is_cal_erase == 48) /* 0 */
 		bma222_fast_calibration(1);	
     else /* 1 */
 		bma222_fast_calibration(0);	
+#endif
+	/*NEW*/
+	if (is_cal_erase == 48) /* 0 */
+	{
+		offset.v[0] = 0;
+		offset.v[1] = 0;
+		offset.v[2] = 0;
+		err=yas_acc_set_offset(data->driver, &offset);
+		//err=data->driver->acc_calibration(0); //No need to call function, Just save 0,0,0
+		printk("### accel_calibration ERASE : offset is saved as 0 \n");
+		iscalibrated=0;
+	}
+	else /* 1 */
+	{
+		err=data->driver->acc_calibration(1);
+		printk("### accel_calibration EXECUTED \n");
+		iscalibrated=1;
+	}
 	
-    printk("### bma222_calibration end\n");
-	
-    return size;
-#if 0
-	int err;
-	int count;
-	unsigned long enable;
-	s32 x;
-	s32 y;
-	s32 z;
-	struct yas_acc_private_data *data = yas_acc_get_data();
-	if (strict_strtoul(buf, 10, &enable))
-		return -EINVAL;
+	//if(err) /*0 means NoError*/
 
-	err = accel_do_calibrate(enable);
-	if (err < 0)
-		pr_err("%s: accel_do_calibrate() failed\n", __func__);
+	printk("### accel_calibration  result:%d, iscal:%d \n",err,iscalibrated);
 
-	x = data->cal_data.v[0];
-	y = data->cal_data.v[1];
-	z = data->cal_data.v[2];
-
-	pr_info("accel_calibration_store %d %d %d\n", x, y, z);
-	if (err > 0)
-		err = 0;
-	count = sprintf(buf, "%d\n", err);
-
-	struct yas_vector offset;
+	/*Save offset at FILE*/
 	yas_acc_get_offset(data->driver, &offset);
-	x = offset.v[0];
-	y = offset.v[1];
-	z = offset.v[2];
+	printk("### GET offset =>x,y,z=%d,%d,%d \n",offset.v[0],offset.v[1],offset.v[2]);
 
-	return count;
-#endif		
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+	cal_filp = filp_open(CALIBRATION_FILE_PATH, O_CREAT | O_TRUNC | O_WRONLY, 0666);
+	if (IS_ERR(cal_filp)) 
+	{
+		pr_err("%s: Can't open calibration file\n", __func__);
+		set_fs(old_fs);
+		err = PTR_ERR(cal_filp);
+		return err;
+	}
+
+	cal_data.x=(s16)offset.v[0];
+	cal_data.y=(s16)offset.v[1];
+	cal_data.z=(s16)offset.v[2];	
+
+	err = cal_filp->f_op->write(cal_filp, (char *)&cal_data, 3 * sizeof(s16), &cal_filp->f_pos);
+	if (err != 3 * sizeof(s16)) 
+	{
+		pr_err("%s: Can't write the cal data to file\n", __func__);
+		err = -EIO;
+	}
+
+	filp_close(cal_filp, current->files);
+	set_fs(old_fs);
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	printk(KERN_INFO "### %s finished with cal data (%d,%d,%d)\n", __func__, cal_data.x, cal_data.y, cal_data.z);		
+	//sprintf(buf, "%d %d %d\n"  , offset.v[0], offset.v[1], offset.v[2]);
+		
+	return size;
 }
 
 static ssize_t get_vendor_name(struct device *dev,
@@ -1646,7 +1759,10 @@ static ssize_t get_vendor_name(struct device *dev,
 	struct yas_acc_private_data *data = yas_acc_get_data();
 	return sprintf(buf, "%s\n", vendor_name[data->used_chip]);
 #else
-	return sprintf(buf, "%s\n", VENDOR_NAME);
+// DUAL
+//	return sprintf(buf, "%s\n", VENDOR_NAME);
+	struct yas_acc_private_data *data = yas_acc_get_data();
+	return sprintf(buf, "%s\n", data->vendor_name[data->used_chip]);
 #endif
 }
 
@@ -1657,7 +1773,10 @@ static ssize_t get_chip_name(struct device *dev,
 	struct yas_acc_private_data *data = yas_acc_get_data();
 	return sprintf(buf, "%s\n", chip_name[data->used_chip]);
 #else
-	return sprintf(buf, "%s\n", CHIP_NAME);
+// DUAL
+//	return sprintf(buf, "%s\n", CHIP_NAME);
+	struct yas_acc_private_data *data = yas_acc_get_data();
+	return sprintf(buf, "%s\n", data->chip_name[data->used_chip]);
 #endif
 }
 
@@ -1684,14 +1803,21 @@ static int yas_acc_probe(struct i2c_client *client,
 	int err;
 
 	calRestored = 0;	
+	if(foundAccel != 0 ) 
+	{
+		printk("accelerometer_sensor ALREADY PROBED.... so exit probe now\n");
+		return -1;
+	}
 
-#ifdef CONFIG_YAS_ACC_MULTI_SUPPORT
+// DUAL
+//#ifdef CONFIG_YAS_ACC_MULTI_SUPPORT
 	struct accel_platform_data *platform_data;
 
 	if (client->dev.platform_data != NULL)
 		platform_data = client->dev.platform_data;
 
-#endif
+//#endif
+
 	/* Setup private data */
 	data = kzalloc(sizeof(struct yas_acc_private_data), GFP_KERNEL);
 	if (!data) {
@@ -1699,10 +1825,14 @@ static int yas_acc_probe(struct i2c_client *client,
 		goto ERR1;
 	}
 	yas_acc_set_data(data);
-#ifdef CONFIG_YAS_ACC_MULTI_SUPPORT
+
+// Dual	
+//#ifdef CONFIG_YAS_ACC_MULTI_SUPPORT
 	data->used_chip = platform_data->used_chip;
 	data->position = platform_data->position;
-#endif
+	memcpy(data->vendor_name, platform_data->vendor_name, MAX_LEN_OF_NAME);
+	memcpy(data->chip_name, platform_data->chip_name, MAX_LEN_OF_NAME);
+//#endif
 	mutex_init(&data->driver_mutex);
 	mutex_init(&data->data_mutex);
 	mutex_init(&data->enable_mutex);
@@ -1750,6 +1880,7 @@ static int yas_acc_probe(struct i2c_client *client,
 			__func__, err);
 		goto out_sensor_register_failed;
 	}
+	printk("accelerometer_sensor probe finished\n");
 	
 	return 0;
 

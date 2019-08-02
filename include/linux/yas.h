@@ -104,6 +104,13 @@ struct yas_mag_filter {
 struct yas_vector {
 	int32_t v[3];
 };
+
+struct acc_cal_data {
+	s16 x;
+	s16 y;
+	s16 z;
+};
+
 struct yas_matrix {
 	int32_t matrix[9];
 };
@@ -135,6 +142,38 @@ struct yas_mag_status {
 };
 struct yas_offset {
 	struct yas_mag_status mag[YAS_MAGCALIB_SHAPE_NUM];
+};
+
+// start of DUAL
+/* Output data rate */
+struct yas_sensor_odr {
+	unsigned long delay;          /* min delay (msec) in the range of ODR */
+	unsigned char odr;            /* bandwidth register value             */
+};
+
+/* Axes data */
+struct yas_sensor_acceleration {
+	int x;
+	int y;
+	int z;
+	int x_raw;
+	int y_raw;
+	int z_raw;
+};
+
+/* Driver private data */
+struct yas_sensor_data {
+	uint8_t chip_id;
+	int initialize;
+	int i2c_open;
+	int enable;
+	int delay;
+	int position;
+	int threshold;
+	int filter_enable;
+	uint8_t odr;
+	struct yas_vector offset;
+	struct yas_sensor_acceleration last;
 };
 
 struct yas_mag_driver_callback {
@@ -306,6 +345,7 @@ struct yas_acc_driver {
 	int (*get_position) (void);
 	int (*set_position) (int position);
 	int (*measure) (struct yas_acc_data *data);
+	int (*acc_calibration) (int onoff);	
 #if DEBUG
 	int (*get_register) (uint8_t adr, uint8_t *val);
 #endif

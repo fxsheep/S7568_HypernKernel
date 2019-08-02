@@ -85,7 +85,7 @@ DECLARE_DELAYED_WORK(sleep_workqueue, bluesleep_sleep_work);
 #define bluesleep_tx_idle()     schedule_delayed_work(&sleep_workqueue, 0)
 
 /* 1 second timeout */
-#define TX_TIMER_INTERVAL      6 
+#define TX_TIMER_INTERVAL      2
 
 /* state variable names and bit positions */
 #define BT_PROTO        0x01
@@ -207,7 +207,7 @@ static void bluesleep_sleep_work(struct work_struct *work)
                         mod_timer(&tx_timer, jiffies + (TX_TIMER_INTERVAL * HZ));
                         return;
                 }
-        }else if (gpio_get_value(bsi->ext_wake) && !test_bit(BT_ASLEEP, &flags)) {
+        }else if (!gpio_get_value(bsi->ext_wake) && !test_bit(BT_ASLEEP, &flags)) {
                 BT_SLEEP_DBG("can not sleep, bt_wake %d\n", gpio_get_value(bsi->ext_wake) );
                 mod_timer(&tx_timer, jiffies + (TX_TIMER_INTERVAL * HZ));
                 gpio_set_value(bsi->ext_wake, 1);
@@ -312,9 +312,9 @@ static void bluesleep_tx_timer_expire(unsigned long data)
         BT_SLEEP_DBG("Tx timer expired\n");
 
         /* were we silent during the last timeout? */
-        if (!test_bit(BT_TXDATA, &flags)) {
+        if (!test_bit(BT_TXDATA, &flags) && !gpio_get_value(bsi->host_wake)) {
                 BT_SLEEP_DBG("Tx has been idle\n");
-                gpio_set_value(bsi->ext_wake, 0); 
+                gpio_set_value(bsi->ext_wake, 0);
                 bluesleep_tx_idle();
         } else {
                 BT_SLEEP_DBG("Tx data during last period\n");

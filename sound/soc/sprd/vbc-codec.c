@@ -644,6 +644,27 @@ static inline int mode_incall(void)
 	return !(__raw_readl(SPRD_VBC_ALSA_CTRL2ARM_REG) & ARM_VB_ACC);
 }
 
+/**
+ * Let all Dolphin registers go to default value
+ */
+static int vbc_reset_soft(void)
+{
+	int ret;
+	ret = sci_adi_set(ANA_AUDIO_CTRL, 1 << 15);
+	if (ret < 0) {
+		pr_err("%s -> sci_adi_set ANA_AUDIO_CTRL failed!\n");
+		return ret;
+	}
+	msleep(1); /* udelay(10) */
+	ret = sci_adi_clr(ANA_AUDIO_CTRL, 1 << 15);
+	if (ret < 0) {
+		pr_err("%s -> sci_adi_clr ANA_AUDIO_CTRL failed!\n");
+		return ret;
+	}
+	msleep(1);
+	return 0;
+}
+
 static int vbc_reset(struct snd_soc_codec *codec, int poweron, int check_incall)
 {
 	int ret = 0;
@@ -1063,6 +1084,7 @@ int vbc_soc_suspend(struct snd_soc_codec *codec, pm_message_t state)
 		pr_info("vbc xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n");
 		vbc_print_regs(0);
 		vbc_power_down((SNDRV_PCM_STREAM_LAST+1) | VBC_CODEC_POWER_DOWN_FORCE);
+		vbc_reset_soft();
 		vbc_print_regs(0);
 		vbc_codec_full_power_down = 1;
 	} else {

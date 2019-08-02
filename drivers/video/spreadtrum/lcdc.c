@@ -372,6 +372,9 @@ static int32_t sprd_lcdc_suspend(struct sprdfb_device *dev)
 			dev->panel->ops->panel_enter_sleep(dev->panel,1);
 		}
 
+          	*(volatile unsigned int *) 0xE00342b0 = 0x331; //LCD_RSTN drv 3 AF 3 OE 
+                mdelay(1); 
+
 		dev->enable = 0;
 		clk_disable(lcdc.clk_lcdc);
 	}
@@ -384,6 +387,10 @@ static int32_t sprd_lcdc_resume(struct sprdfb_device *dev)
 	if (dev->enable == 0) {
 		clk_enable(lcdc.clk_lcdc);
 		lcdc.vsync_done = 1;
+
+                *(volatile unsigned int  *) 0xE00342b0 = 0x108; //LCD_RSTN drv 1/AF 0/Z 
+                mdelay(1); 
+
 		if (lcdc_read(LCDC_CTRL) == 0) { /* resume from deep sleep */
 			sprd_lcdc_reset();
 			lcdc_hw_init();

@@ -94,6 +94,9 @@ uint8	spi_inbuf[SPI_MAX_PKT_LEN];
 #define BUF2_PKT_LEN	128
 uint8	spi_outbuf2[BUF2_PKT_LEN];
 uint8	spi_inbuf2[BUF2_PKT_LEN];
+#ifdef BCMSPI_ANDROID
+uint *dhd_spi_lockcount = NULL;
+#endif /* BCMSPI_ANDROID */
 
 #if !(defined(SPI_PIO_RW_BIGENDIAN) && defined(SPI_PIO_32BIT_RW))
 #define SPISWAP_WD4(x) bcmswap32(x);
@@ -164,6 +167,10 @@ sdioh_attach(osl_t *osh, void *bar0, uint irq)
 	 */
 	sd->wordlen = 2;
 
+#ifdef BCMSPI_ANDROID
+	dhd_spi_lockcount = &sd->lockcount;
+#endif /* BCMSPI_ANDROID */
+
 #ifndef BCMSPI_ANDROID
 	if (!spi_hw_attach(sd)) {
 		sd_err(("%s: spi_hw_attach() failed\n", __FUNCTION__));
@@ -209,6 +216,9 @@ sdioh_detach(osl_t *osh, sdioh_info_t *sd)
 		spi_hw_detach(sd);
 #endif /* !BCMSPI_ANDROID */
 		spi_osfree(sd);
+#ifdef BCMSPI_ANDROID
+		dhd_spi_lockcount = NULL;
+#endif /* !BCMSPI_ANDROID */
 		MFREE(sd->osh, sd, sizeof(sdioh_info_t));
 	}
 	return SDIOH_API_RC_SUCCESS;

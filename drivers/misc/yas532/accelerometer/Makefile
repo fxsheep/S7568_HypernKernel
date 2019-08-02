@@ -22,4 +22,5 @@ ifdef CONFIG_YAS_ACC_MULTI_SUPPORT
 obj-$(CONFIG_YAS_ACC_DRIVER_LIS3DH) += yas_acc_driver-lis3dh.o
 obj-$(CONFIG_YAS_ACC_DRIVER_BMA250) += yas_acc_driver-bma25x.o
 obj-$(CONFIG_YAS_ACC_DRIVER_BMA222E) += yas_acc_driver-bma222e.o
+obj-$(CONFIG_YAS_ACC_DRIVER_KXTJ2) += yas_acc_driver-kxtj2.o
 endif

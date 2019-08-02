@@ -856,6 +856,10 @@ static int32_t nt35510_init(struct panel_spec *self)
 	send_cmd(0x3A00);
 	send_data(0x05);
 
+	send_cmd(0x4400);
+	send_data(0x02);	
+	send_cmd(0x4401);
+	send_data(0xBC);
 	//send_cmd(0x2C00); -> set window
 
 	
