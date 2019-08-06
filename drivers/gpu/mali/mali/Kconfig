@@ -2,7 +2,7 @@ config MALI400
 	tristate "Mali-300/400/450 support"
 	depends on ARM
 	select FB
-	default m
+	default y
 	---help---
 	  This enables support for the Mali-300, Mali-400, and Mali-450 GPUs.
 
