@@ -1,7 +1,6 @@
 config UMP
 	tristate "UMP support"
 	depends on ARM
-	default m
 	---help---
 	  This enables support for the UMP memory allocation and sharing API.
 
