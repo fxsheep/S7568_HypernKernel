@@ -68,7 +68,7 @@ static int backlight_mode=1;
 #endif
 #define MAX_BRIGHTNESS_VALUE	255
 #define MIN_BRIGHTNESS_VALUE	30
-#define BACKLIGHT_DEBUG 0
+#define BACKLIGHT_DEBUG 1
 #define BACKLIGHT_SUSPEND 0
 #define BACKLIGHT_RESUME 1
 
@@ -399,6 +399,10 @@ static void ktd253b_backlight_earlysuspend(struct early_suspend *desc)
 	backlight_mode=BACKLIGHT_SUSPEND;
 	PrevDimmingPulse=0;
     printk("[BACKLIGHT] ktd253b_backlight_earlysuspend\n");
+	BLDBG("[BACKLIGHT_EARLY] ktd253b_backlight_update_status ==> OFF\n");
+	CurrDimmingPulse = 0;
+	gpio_set_value(backlight_pin,0);
+	mdelay(10);
 }
 
 static void ktd253b_backlight_earlyresume(struct early_suspend *desc)
@@ -419,6 +423,11 @@ static int ktd253b_backlight_suspend(struct platform_device *pdev, pm_message_t 
 	struct ktd253b_bl_data *ktd253b = dev_get_drvdata(&bl->dev);
     
 	printk("[BACKLIGHT] ktd253b_backlight_suspend\n");
+
+	BLDBG("[BACKLIGHT_SUSPEND] ktd253b_backlight_update_status ==> OFF\n");
+	CurrDimmingPulse = 0;
+	gpio_set_value(backlight_pin,0);
+	mdelay(10);
         
 	return 0;
 }
