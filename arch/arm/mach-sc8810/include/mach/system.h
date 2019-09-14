@@ -24,7 +24,7 @@ static inline void arch_idle(void)
 
 static inline void arch_reset(char mode, const char *cmd)
 {
-	//sprd_set_reboot_mode(cmd);
+	sprd_set_reboot_mode(cmd);
 	sprd_turnon_watchdog(50);
 }
 
