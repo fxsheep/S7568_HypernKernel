@@ -87,49 +87,9 @@ static void sec_reboot(char str, const char *cmd)
 
 	pr_emerg("%s (%d, %s)\n", __func__, str, cmd ? cmd : "(null)");
 
-	writel(0x12345678,SPRD_INFORM2);	/* Don't enter lpm mode */
-
-	if (!cmd) {
-		writel(REBOOT_MODE_PREFIX | REBOOT_MODE_NONE, SPRD_INFORM3);
-	} else {
-		unsigned long value;
-		if (!strcmp(cmd, "fota"))
-			writel(REBOOT_MODE_PREFIX | REBOOT_MODE_ARM11_FOTA,
-			       SPRD_INFORM3);
-		else if (!strcmp(cmd, "recovery"))
-			writel(REBOOT_MODE_PREFIX | REBOOT_MODE_RECOVERY,
-			       SPRD_INFORM3);
-		else if (!strcmp(cmd, "download"))
-			writel(REBOOT_MODE_PREFIX | REBOOT_MODE_DOWNLOAD,
-			       SPRD_INFORM3);
-		else if (!strcmp(cmd, "upload"))
-			writel(REBOOT_MODE_PREFIX | REBOOT_MODE_UPLOAD,
-			       SPRD_INFORM3);
-#if defined(CONFIG_RTC_CHN_ALARM_BOOT)
-		else if (!strcmp(cmd, "alarmboot"))
-			writel(REBOOT_MODE_PREFIX | REBOOT_MODE_ALARM_BOOT,
-			       SPRD_INFORM3);
-#endif
-		else if (!strncmp(cmd, "debug", 5)
-			 && !kstrtoul(cmd + 5, 0, &value))
-			writel(REBOOT_SET_PREFIX | REBOOT_SET_DEBUG | value,
-			       SPRD_INFORM3);
-		else if (!strncmp(cmd, "swsel", 5)
-			 && !kstrtoul(cmd + 5, 0, &value))
-			writel(REBOOT_SET_PREFIX | REBOOT_SET_SWSEL | value,
-			       SPRD_INFORM3);
-		else if (!strncmp(cmd, "sud", 3)
-			 && !kstrtoul(cmd + 3, 0, &value))
-			writel(REBOOT_SET_PREFIX | REBOOT_SET_SUD | value,
-			       SPRD_INFORM3);
-		else
-			writel(REBOOT_MODE_PREFIX | REBOOT_MODE_NONE,
-			       SPRD_INFORM3);
-	}
-
 	flush_cache_all();
 	outer_flush_all();
-	arch_reset(0, 0);
+	arch_reset(0, cmd);
 
 	pr_emerg("%s: waiting for reboot\n", __func__);
 	while (1);
